@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nexam · Arma, imprime y lleva las notas de tus exámenes</title>
+<meta name="description" content="Nexam arma e imprime exámenes con series de varios tipos y una versión distinta por alumno, guarda las notas que el maestro pone y muestra qué le falta a cada alumno. Funciona sin internet.">
+<link rel="icon" href="assets/logo.png">
+<style>
+  :root {
+    --paper: #f1f5f9; --card: #ffffff; --ink: #0f172a; --muted: #64748b; --line: #e2e8f0;
+    --brand: #0f766e; --brand-2: #0e7490; --brand-dark: #115e59; --brand-soft: #e0f2f1;
+    --rose: #be123c; --rose-soft: #ffe4e9; --amber: #f59e0b; --amber-soft: #fef3c7;
+    --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    --shadow: 0 1px 2px rgba(15,23,42,.05), 0 10px 28px rgba(15,23,42,.07);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font-family: var(--sans); color: var(--ink); background: var(--paper); line-height: 1.55; }
+  .wrap { width: min(1100px, calc(100% - 32px)); margin: 0 auto; }
+  h1, h2, h3 { line-height: 1.15; margin: 0; letter-spacing: -.015em; }
+  h2 { font-size: clamp(1.6rem, 3.4vw, 2.2rem); margin-bottom: 10px; }
+  h3 { font-size: 1.1rem; }
+  p { margin: 0 0 10px; }
+  a { color: var(--brand); }
+  .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: .78rem; color: var(--brand); font-weight: 700; margin-bottom: 8px; }
+  .lede { color: var(--muted); font-size: 1.1rem; max-width: 62ch; }
+
+  /* Barra superior */
+  .top { position: sticky; top: 0; z-index: 10; background: rgba(241,245,249,.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.25rem; text-decoration: none; color: var(--ink); }
+  .brand img { width: 38px; height: 38px; border-radius: 22%; box-shadow: 0 4px 12px rgba(15,23,42,.25); }
+  .top nav { display: flex; gap: 4px; font-size: .93rem; flex-wrap: wrap; }
+  .top nav a { color: var(--brand-dark); text-decoration: none; padding: 7px 13px; border-radius: 999px; font-weight: 600; }
+  .top nav a:hover { background: var(--brand-soft); }
+  .top nav a.cta { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; box-shadow: 0 4px 12px rgba(15,118,110,.3); }
+  @media (max-width: 760px) { .top nav a:not(.cta) { display: none; } }
+
+  .btn { display: inline-block; background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; text-decoration: none; padding: 12px 22px; border-radius: 999px; font-size: 1rem; font-weight: 600; border: 1px solid transparent; box-shadow: 0 6px 16px rgba(15,118,110,.28); transition: transform .12s, box-shadow .12s; }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(15,118,110,.36); }
+  .btn.ghost { background: transparent; color: var(--brand); border-color: #99d6cf; box-shadow: none; }
+  .btn.ghost:hover { background: var(--brand-soft); }
+  .btn.light { background: #fff; color: var(--brand-dark); box-shadow: 0 8px 20px rgba(0,0,0,.18); }
+
+  /* Portada */
+  .hero { background: radial-gradient(900px 400px at 85% 10%, rgba(94,234,212,.25), transparent 60%), linear-gradient(135deg, #0f172a 0%, #115e59 55%, #0e7490 100%); color: #fff; padding: 76px 0 84px; position: relative; overflow: hidden; }
+  .hero .wrap { display: grid; grid-template-columns: 1.15fr .85fr; gap: 40px; align-items: center; }
+  .hero .eyebrow { color: #5eead4; }
+  .hero h1 { font-size: clamp(2.2rem, 5.4vw, 3.8rem); margin-bottom: 16px; }
+  .hero p.lede { color: #cbe9e6; }
+  .hero .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .hero .btn.ghost { color: #fff; border-color: rgba(94,234,212,.6); }
+  .hero .btn.ghost:hover { background: rgba(255,255,255,.1); }
+  .hero small { display: block; margin-top: 14px; color: #8fd3cc; }
+  .hero-art { display: flex; justify-content: center; }
+  .hero-art .logo { width: min(300px, 70%); aspect-ratio: 1; border-radius: 22.5%; box-shadow: 0 30px 70px rgba(0,0,0,.45); transform: rotate(-4deg); }
+  .hero-art .logo img { width: 100%; height: 100%; display: block; border-radius: 22.5%; }
+  @media (max-width: 800px) { .hero .wrap { grid-template-columns: 1fr; } .hero-art { order: -1; } .hero-art .logo { width: 130px; } .hero { padding: 40px 0 52px; } }
+
+  /* Secciones */
+  section { padding: 64px 0; }
+  section.alt { background: #fff; border-block: 1px solid var(--line); }
+  .grid { display: grid; gap: 16px; margin-top: 28px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 20px; box-shadow: var(--shadow); }
+  section.alt .card { background: var(--paper); box-shadow: none; }
+  .card p { color: var(--muted); font-size: .98rem; margin: 6px 0 0; }
+  .icon { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #ccfbf1, #cffafe); color: var(--brand-dark); display: grid; place-items: center; font-size: 1.2rem; margin-bottom: 12px; font-weight: 700; }
+
+  /* Problema / solución */
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 28px; }
+  @media (max-width: 760px) { .vs { grid-template-columns: 1fr; } }
+  .vs .card { padding: 26px; box-shadow: none; }
+  .vs .before { background: var(--rose-soft); border-color: #fecdd6; }
+  .vs .after { background: var(--brand-soft); border-color: #99d6cf; }
+  .vs h3 { margin-bottom: 10px; }
+  .vs .before h3 { color: var(--rose); } .vs .after h3 { color: var(--brand-dark); }
+  .vs ul { margin: 0; padding-left: 20px; } .vs li { margin: 6px 0; }
+
+  /* Pasos */
+  .steps { counter-reset: s; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-top: 28px; }
+  .step { background: var(--paper); border: 1px solid var(--line); border-radius: 20px; padding: 18px; position: relative; }
+  .step::before { counter-increment: s; content: counter(s); font-weight: 700; width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; display: grid; place-items: center; margin-bottom: 10px; }
+  .step p { color: var(--muted); font-size: .95rem; margin: 6px 0 0; }
+
+  /* Cifras */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-top: 28px; }
+  .stat { text-align: center; padding: 22px 12px; border-radius: 20px; background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; box-shadow: 0 12px 28px rgba(14,116,144,.28); }
+  .stat b { display: block; font-size: 2rem; }
+  .stat span { font-size: .92rem; color: #d3f4ef; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .tags span { background: var(--brand-soft); color: var(--brand-dark); border-radius: 999px; padding: 6px 14px; font-size: .9rem; font-weight: 600; }
+
+  /* Descarga */
+  .dl-box { background: linear-gradient(135deg, #0f172a, #115e59 60%, #0e7490); color: #fff; border-radius: 24px; padding: 30px; margin-top: 28px; display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: space-between; box-shadow: 0 18px 40px rgba(14,116,144,.3); }
+  .dl-box h3 { font-size: 1.35rem; margin-bottom: 4px; }
+  .dl-box p { color: #cbe9e6; margin: 0; font-size: .97rem; }
+  .os { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 18px; }
+  .os .card ol { margin: 10px 0 0; padding-left: 22px; color: var(--ink); }
+  .os .card li { margin: 8px 0; font-size: .98rem; }
+  code { font-family: ui-monospace, Consolas, monospace; background: var(--brand-soft); color: var(--brand-dark); padding: 1px 7px; border-radius: 6px; font-size: .9em; }
+  .note { margin-top: 18px; padding: 14px 18px; border-radius: 14px; font-size: .95rem; }
+  .note.warn { background: var(--amber-soft); color: #78350f; }
+  .note.ok { background: #d1fae5; color: #065f46; }
+  .req { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; font-size: .9rem; }
+  .req span { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px; }
+
+  /* Cierre */
+  .final { background: linear-gradient(135deg, #0f172a 0%, #115e59 60%, #0e7490 100%); color: #fff; text-align: center; padding: 72px 0; }
+  .final p { color: #cbe9e6; max-width: 56ch; margin: 0 auto 24px; font-size: 1.1rem; }
+  footer { text-align: center; color: var(--muted); font-size: .88rem; padding: 22px 14px; }
+
+  /* Responsive */
+  img { max-width: 100%; height: auto; }
+  body { overflow-wrap: break-word; -webkit-text-size-adjust: 100%; }
+  .btn { min-height: 44px; text-align: center; }
+  .top nav a { min-height: 36px; display: inline-flex; align-items: center; }
+  [id] { scroll-margin-top: 70px; }
+  @media (max-width: 960px) { section { padding: 52px 0; } .hero { padding: 56px 0 64px; } .top nav a:not(.cta) { padding: 7px 10px; font-size: .88rem; } }
+  @media (max-width: 760px) {
+    .wrap { width: calc(100% - 28px); } section { padding: 44px 0; } .final { padding: 52px 0; } .lede { font-size: 1.02rem; }
+    .hero .row { flex-direction: column; align-items: stretch; } .hero .row .btn { width: 100%; }
+    .dl-box { padding: 22px; flex-direction: column; align-items: stretch; } .dl-box .btn { width: 100%; }
+    .vs .card { padding: 20px; } .stat b { font-size: 1.7rem; }
+  }
+  @media (max-width: 480px) {
+    body { font-size: 15.5px; } .brand { font-size: 1.1rem; } .brand img { width: 34px; height: 34px; }
+    .hero { padding: 28px 0 40px; } .hero h1 { font-size: 2rem; } .eyebrow { font-size: .72rem; }
+    .grid { gap: 12px; margin-top: 22px; } .g2, .g3, .os { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: 1fr; gap: 12px; }
+    .step { display: grid; grid-template-columns: 40px 1fr; column-gap: 12px; align-items: start; padding: 16px; }
+    .step::before { margin: 0; grid-row: span 2; } .step p { margin-top: 2px; }
+    .stats { grid-template-columns: 1fr 1fr; gap: 10px; } .stat { padding: 16px 8px; } .stat b { font-size: 1.4rem; } .stat span { font-size: .82rem; }
+    .card { padding: 16px; } .os .card ol { padding-left: 20px; } .note { padding: 12px 14px; font-size: .92rem; }
+    .req span, .tags span { font-size: .84rem; padding: 5px 11px; }
+  }
+  @media (max-width: 340px) { .stats { grid-template-columns: 1fr; } .hero h1 { font-size: 1.8rem; } }
+  @media (min-width: 1400px) { .wrap { width: min(1240px, calc(100% - 64px)); } body { font-size: 17px; } }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#inicio"><img src="assets/logo.png" alt="">Nexam</a>
+    <nav>
+      <a href="#problema">Problema</a>
+      <a href="#como">Cómo funciona</a>
+      <a href="#funciones">Funciones</a>
+      <a href="#tecnica">Técnica</a>
+      <a href="#descarga">Descarga</a>
+      <a class="cta" data-descarga href="https://github.com/Starlyxs/Nexam/releases/latest">⬇ Descargar</a>
+    </nav>
+  </div>
+</header>
+
+<main id="inicio">
+
+  <!-- PORTADA -->
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow">Programa para el maestro · funciona sin internet</p>
+        <h1>Arma, imprime y lleva las notas de tus exámenes.</h1>
+        <p class="lede">El maestro crea el examen con series de varios tipos y lo imprime con una versión distinta por alumno. Revisa a mano, escribe los puntos de cada serie, y Nexam lleva las notas, los boletines y muestra qué le falta a cada alumno y al grupo.</p>
+        <p class="lede"><strong>Sin internet. Sin celulares para los alumnos.</strong></p>
+        <div class="row">
+          <a class="btn light" data-descarga href="https://github.com/Starlyxs/Nexam/releases/latest">⬇ Descargar para Windows</a>
+          <a class="btn ghost" href="#descarga">Cómo instalarlo</a>
+          <a class="btn ghost" href="#funciones">Ver qué hace</a>
+        </div>
+        <small id="version-actual"></small>
+      </div>
+      <div class="hero-art"><div class="logo"><img src="assets/logo.png" alt="Logo de Nexam"></div></div>
+    </div>
+  </div>
+
+  <!-- PROBLEMA -->
+  <section id="problema">
+    <div class="wrap">
+      <p class="eyebrow">El problema</p>
+      <h2>Preparar y calificar a mano quita tiempo que se necesita para enseñar.</h2>
+      <p class="lede">Muchas escuelas no tienen internet estable ni dispositivos para cada alumno. El examen en papel sigue siendo la herramienta de todos los días.</p>
+      <div class="vs">
+        <div class="card before">
+          <h3>Hoy</h3>
+          <ul>
+            <li>Escribir cada examen en Word y copiarlo para cada grupo.</li>
+            <li>Alumnos que se copian porque todos tienen el mismo examen.</li>
+            <li>Pasar las notas a Excel una por una.</li>
+            <li>Perder de vista qué tema no entendió el grupo.</li>
+          </ul>
+        </div>
+        <div class="card after">
+          <h3>Con Nexam</h3>
+          <ul>
+            <li>Un banco de preguntas y exámenes listos para imprimir en PDF.</li>
+            <li>Variantes A–F, o una distinta para cada alumno.</li>
+            <li>Tabla por materia y bimestre, lista para Excel.</li>
+            <li>Gráficos del grupo y refuerzo para cada alumno.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CÓMO FUNCIONA -->
+  <section id="como" class="alt">
+    <div class="wrap">
+      <p class="eyebrow">Cómo funciona</p>
+      <h2>De crear el examen a ver qué le falta a cada alumno.</h2>
+      <div class="steps">
+        <div class="step"><h3>Mi configuración</h3><p>El maestro agrega sus clases, el reparto de puntos y su horario una sola vez.</p></div>
+        <div class="step"><h3>Alumnos</h3><p>Se crea cada grado y sección con sus alumnos una sola vez.</p></div>
+        <div class="step"><h3>Exámenes</h3><p>Se elige materia y tipo, se arman las series y se descarga el PDF para imprimir.</p></div>
+        <div class="step"><h3>Calificar</h3><p>Se revisan las hojas a mano y se escriben los puntos de cada serie en una tabla.</p></div>
+        <div class="step"><h3>Notas</h3><p>Tabla por materia y bimestre, descargable para Excel, y boletines para imprimir.</p></div>
+        <div class="step"><h3>Análisis</h3><p>Resultados del grupo y de cada alumno, por examen, materia o año.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FUNCIONES -->
+  <section id="funciones">
+    <div class="wrap">
+      <p class="eyebrow">Qué hace</p>
+      <h2>Pensado para el trabajo real del aula.</h2>
+      <div class="grid g3">
+        <div class="card"><div class="icon">✎</div><h3>8 tipos de series</h3><p>Opciones, verdadero o falso, completar, emparejar, respuesta corta, ordenar, problema y escrita. El tipo se elige al crear la serie.</p></div>
+        <div class="card"><div class="icon">⧉</div><h3>Una versión por alumno</h3><p>Cada serie usa unas preguntas del banco. Cada alumno recibe las suyas, o se reparten en variantes A a F.</p></div>
+        <div class="card"><div class="icon">✓</div><h3>Calificación a mano</h3><p>Tabla tipo Excel con los puntos de cada serie. Muestra la clave de cada variante y no deja pasar el máximo.</p></div>
+        <div class="card"><div class="icon">☰</div><h3>Pensado para colegios</h3><p>Cada maestro configura sus materias, niveles, grados y secciones, con parciales variables por bimestre.</p></div>
+        <div class="card"><div class="icon">%</div><h3>Reparto de puntos</h3><p>Por ejemplo 60 examen final, 30 tareas y 10 asistencia. Un bimestre nunca pasa de 100.</p></div>
+        <div class="card"><div class="icon">▥</div><h3>Tareas y asistencia</h3><p>Hoja tipo Excel por materia, sección y bimestre. Suma a las notas del año, al boletín y a la exportación.</p></div>
+        <div class="card"><div class="icon">⌂</div><h3>«Hoy te toca»</h3><p>Inicio muestra las clases del día según el horario y avisa si hay puntos por escribir.</p></div>
+        <div class="card"><div class="icon">⇄</div><h3>Coordinador</h3><p>Exporta e importa las notas de cada maestro para juntarlas en un solo archivo.</p></div>
+        <div class="card"><div class="icon">≡</div><h3>Notas del año</h3><p>Junta los cuatro bimestres y se descargan para Excel.</p></div>
+        <div class="card"><div class="icon">▤</div><h3>Gráficos y refuerzo</h3><p>Por grupo, materia y año, con un texto claro para cada alumno.</p></div>
+        <div class="card"><div class="icon">❏</div><h3>Boletines</h3><p>Boletín por alumno, listo para imprimir.</p></div>
+        <div class="card"><div class="icon">⟳</div><h3>Se actualiza solo</h3><p>Avisa cuando hay una versión nueva y la instala con un botón. Tus datos no se tocan.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- IMPACTO -->
+  <section id="impacto" class="alt">
+    <div class="wrap">
+      <p class="eyebrow">Por qué importa</p>
+      <h2>Funciona donde otras soluciones no llegan.</h2>
+      <div class="stats">
+        <div class="stat"><b>0</b><span>celulares para alumnos</span></div>
+        <div class="stat"><b>8</b><span>tipos de series</span></div>
+        <div class="stat"><b>Offline</b><span>sin internet para trabajar</span></div>
+        <div class="stat"><b>~30 MB</b><span>de descarga</span></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>Para el maestro</h3><p>Recupera horas de preparación y ve de inmediato qué tema reforzar.</p></div>
+        <div class="card"><h3>Para el alumno</h3><p>Recibe un examen propio y un texto claro con lo que le falta.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TÉCNICA -->
+  <section id="tecnica">
+    <div class="wrap">
+      <p class="eyebrow">Por dentro</p>
+      <h2>Tecnología sencilla y que corre en local.</h2>
+      <p class="lede">Un servidor local en la computadora del maestro, dentro de su propia ventana. No envía datos a ningún lado, y las notas se guardan en <code>%APPDATA%\Nexam</code>.</p>
+      <div class="grid g3">
+        <div class="card"><h3>Servidor local</h3><p>FastAPI y Uvicorn sirven la aplicación en la propia computadora.</p></div>
+        <div class="card"><h3>Ventana propia</h3><p>pywebview abre Nexam como una aplicación, sin pasar por el navegador.</p></div>
+        <div class="card"><h3>PDF de exámenes</h3><p>Pillow dibuja las hojas listas para imprimir, con sus variantes.</p></div>
+      </div>
+      <div class="tags">
+        <span>Python</span><span>FastAPI</span><span>Uvicorn</span><span>pywebview</span><span>Pillow</span><span>Inno Setup</span><span>Windows 10 · 11</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- DESCARGA -->
+  <section id="descarga" class="alt">
+    <div class="wrap">
+      <p class="eyebrow">Descarga e instalación</p>
+      <h2>Instálalo en un minuto.</h2>
+      <p class="lede">Descarga el instalador y ábrelo. Nexam se instala en <code>C:\Nexam</code>, crea su acceso directo y se abre en su propia ventana. Con «Cargar prueba simulada» se ve todo sin escribir nada.</p>
+
+      <div class="dl-box">
+        <div>
+          <h3>Nexam para Windows</h3>
+          <p>Instalador con acceso directo en el escritorio. <span id="version-dl"></span></p>
+        </div>
+        <a class="btn light" data-descarga href="https://github.com/Starlyxs/Nexam/releases/latest">⬇ Descargar instalador</a>
+      </div>
+
+      <div class="req">
+        <span>Windows 10 u 11</span>
+        <span>4 GB de memoria</span>
+        <span>~200 MB libres</span>
+        <span>No necesita internet para usarlo</span>
+      </div>
+
+      <div class="os">
+        <div class="card">
+          <h3>Instalar</h3>
+          <ol>
+            <li><strong>Descarga el instalador</strong> con el botón de arriba.</li>
+            <li>Ábrelo con doble clic y sigue la ventana: <strong>Siguiente</strong> y <strong>Instalar</strong>.</li>
+            <li>Marca <em>«Crear un acceso directo en el escritorio»</em> si quieres uno.</li>
+            <li>Al terminar, Nexam se abre solo. La próxima vez, ábrelo desde el acceso directo.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h3>Actualizar</h3>
+          <ol>
+            <li>Cuando hay una versión nueva, aparece una barra amarilla arriba.</li>
+            <li>Pulsa <strong>Actualizar ahora</strong>.</li>
+            <li>Nexam descarga el instalador, se cierra, se actualiza y se vuelve a abrir.</li>
+            <li>Tus exámenes y notas se quedan como estaban.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="note ok"><strong>Para ver todo sin escribir nada:</strong> en <em>Inicio</em>, pulsa <strong>«Cargar prueba simulada»</strong>. Crea un grupo de ejemplo con exámenes de varios tipos y variantes ya calificados, notas, análisis y boletines. «Borrar la prueba simulada» lo quita.</div>
+
+      <div class="note warn"><strong>Si Windows dice «protegió su PC»:</strong> pulsa <em>Más información</em> y luego <em>Ejecutar de todas formas</em>. Es porque el programa aún no tiene firma digital; el instalador es el mismo que se publica en GitHub.</div>
+
+      <div class="grid g3">
+        <div class="card"><h3>Tus datos</h3><p>Se guardan solo en tu computadora, en <code>%APPDATA%\Nexam</code>, con copia automática diaria y copia descargable desde Inicio.</p></div>
+        <div class="card"><h3>Cerrarlo</h3><p>Cierra la ventana de Nexam. Todo queda guardado.</p></div>
+        <div class="card"><h3>Si algo falla</h3><p>Dentro del programa, la página <strong>Ayuda</strong> explica los casos comunes.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CIERRE -->
+  <div class="final">
+    <div class="wrap">
+      <h2>Menos tiempo preparando. Más tiempo enseñando.</h2>
+      <p>Nexam lleva el examen, las notas y el análisis a cualquier aula con una computadora y una impresora.</p>
+      <a class="btn light" data-descarga href="https://github.com/Starlyxs/Nexam/releases/latest">⬇ Descargar para Windows</a>
+    </div>
+  </div>
+</main>
+
+<footer>Nexam · Hecho por Branly Reyes · <strong>Starlyx</strong> · <a href="https://github.com/Starlyxs/Nexam">Código en GitHub</a> · <a href="https://github.com/Starlyxs/Nexam/releases">Todas las versiones</a></footer>
+
+<script>
+  // Pone el enlace directo al instalador de la última versión publicada. Si no se puede, queda la página de releases.
+  fetch("https://api.github.com/repos/Starlyxs/Nexam/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (rel) {
+      if (!rel) return;
+      var setup = (rel.assets || []).filter(function (a) { return /setup.*\.exe$/i.test(a.name); })[0];
+      if (setup) document.querySelectorAll("[data-descarga]").forEach(function (a) { a.href = setup.browser_download_url; });
+      var texto = "Versión " + String(rel.tag_name || "").replace(/^v/i, "");
+      var a = document.getElementById("version-actual"); if (a) a.textContent = texto;
+      var b = document.getElementById("version-dl"); if (b) b.textContent = texto + ".";
+    })
+    .catch(function () {});
+</script>
+</body>
+</html>
